@@ -5,13 +5,8 @@
 # and reassambles a new strings.xml as fitted for Android projects.
 
 # run via "python3.5 gtranslate.py"
-
+# Note: needs module html. To install, run "pip install html" (python package installer)
 ### Settings 
-
-INPUTLANGUAGE='en'
-OUTPUTLANGUAGE='de'
-INFILE='teststrings.xml'
-OUTFILE='teststrings_de.xml'
 
 ### LANGUAGE CODES FOR REFERENCE
 
@@ -167,41 +162,117 @@ OUTFILE='teststrings_de.xml'
 
 import html
 import requests
-import xml.etree.ElementTree as ET
+#import xml.etree.ElementTree as ET
+import lxml.etree as ET
+import sys, getopt
+import os.path
 from io import BytesIO
 
-def translate(to_translate, to_language="auto", language="auto"):
- r = requests.get("http://translate.google.com/m?hl=%s&sl=%s&q=%s"% (to_language, language, to_translate.replace(" ", "+")))
- if r.encoding is None or r.encoding == 'ISO-8859-1':
-     r.encoding = r.apparent_encoding
- text=html.unescape(r.text)    
- before_trans = 'class="t0">'
- after_trans='</div><form'
- parsed1=r.text[r.text.find(before_trans)+len(before_trans):]
- parsed2=parsed1[:parsed1.find(after_trans)]
- 
- return html.unescape(parsed2)
+class Translator():
 
-tree = ET.parse(INFILE)
-root = tree.getroot()
-for i in range(len(root)):
-    print((str(i)+" ========================="))
-    if(root[i].tag=='string'):
-        totranslate=root[i].text
-        print(totranslate)
-        print("-->")
-        if(totranslate!=None):
-            root[i].text=translate(totranslate,OUTPUTLANGUAGE,INPUTLANGUAGE)
-            print(root[i].text)
-    if(root[i].tag=='string-array'):
-        for j in range(len(root[i])):	
-            print((str(i)+" ========================="))
-            if(root[i][j].tag=='item'):
-                totranslate=root[i][j].text
-                print(totranslate)
-                if(totranslate!=None):
-                    root[i][j].text=translate(totranslate,OUTPUTLANGUAGE,INPUTLANGUAGE)
-                    print(root[i][j].text)
+    def getOutputFilename(self, inFile, toLanguage):
+        filenameStem = os.path.splitext(inFile)[0]
+        fileExt = os.path.splitext(inFile)[1]
+        print(filenameStem)
+        print(fileExt)
+        outFile = "" + filenameStem + '-' + toLanguage + fileExt
+        return outFile
+
+
+
+    def translate(self, to_translate, from_language="auto", to_language="auto"):
+#     print('translating to ', to_language, ' from ', from_language)
+     r = requests.get("http://translate.google.com/m?hl=%s&sl=%s&q=%s"% (to_language, from_language, to_translate.replace(" ", "+")))
+     if r.encoding is None or r.encoding == 'ISO-8859-1':
+         r.encoding = r.apparent_encoding
+#     print('Encoding :',r.encoding)
+#     print('processing text ',r.text)
+#     text=html.unescape(r.text)    
+     before_trans = 'class="t0"'
+     after_trans='</div>'
+#     print('found at pos ',r.text.find(before_trans))
+     parsed1=r.text[r.text.find(before_trans)+len(before_trans):]
+     parsed2=parsed1[:parsed1.find(after_trans)]
+     parsed3=parsed2[parsed2.find('>')+1:]
+     #print('translated text : ',parsed3)
      
-tree.write(OUTFILE, encoding='utf-8')
+     return parsed3
+
+    def translateXmlFile(self, inFile, outFile, fromLanguage, toLanguage):
+        tree = ET.parse(inFile)
+        root = tree.getroot()
+        for i in range(len(root)):
+            isTranslatable = root[i].get('translatable')
+            if(root[i].tag=='string'):
+#                if(isTranslatable=='false'):
+#                    print(root[i].text)
+#                else:
+                if(isTranslatable!='false'):
+                    totranslate=root[i].text
+                    print((str(i)+" ========================="))
+                    print(totranslate)
+                    print("-->")
+                    if(totranslate!=None):
+                        root[i].text=self.translate(totranslate,fromLanguage,toLanguage)
+                        print(root[i].text)
+            elif(root[i].tag=='string-array'):
+#                if(isTranslatable=='false'):
+#                    for j in range(len(root[i])):	
+#                        print((str(i)+" ========================="))
+#                        if(root[i][j].tag=='item'):
+#                            print(root[i][j].text)
+#                else:
+                if(isTranslatable!='false'):
+                    for j in range(len(root[i])):	
+                        if(root[i][j].tag=='item'):
+                            totranslate=root[i][j].text
+                            if(totranslate!=None):
+                                root[i][j].text=self.translate(totranslate,fromLanguage,toLanguage)
+                                print((str(i)+"["+str(j)+"] ========================="))
+                                print(totranslate)
+                                print(root[i][j].text)
+        print('writing to '+outFile)
+        tree.write(outFile, xml_declaration=True, encoding='utf-8')
+
+
+def showUsage():
+    print('gtranslate.py -i <inputfile> -o <outputfile> -l <languageCode e.g. "zh-CN>"')
+
+def main(argv):
+    inputfile = ''
+    translationsFile = ''
+    outputfile = ''
+    try:
+        opts, args = getopt.getopt(argv,"hi:o:l:",["ifile=","ofile=","lfile="])
+    except getopt.GetoptError:
+        showUsage()
+        sys.exit(2)
+    if(len(opts) < 2 | len(opts) > 3):
+        showUsage()
+        sys.exit(2)
+
+    outputFile = None
+
+    for opt, arg in opts:
+        if opt == '-h':
+            showUsage()
+            sys.exit()
+        elif opt in ("-i", "--ifile"):
+            inputFile = arg
+        elif opt in ("-o", "--ofile"):
+            outputFile = arg
+        elif opt in ("-l", "--lfile"):
+            outputLanguage = arg
+
+    translator = Translator()
+    if(outputFile is None):
+        outputFile = translator.getOutputFilename(inputFile, outputLanguage)
+
+    print('Input file is        : ', inputFile)
+    print('Output file is       : ', outputFile)
+
+    translator.translateXmlFile(inputFile, outputFile, "auto", outputLanguage)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
