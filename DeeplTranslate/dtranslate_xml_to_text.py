@@ -1,59 +1,65 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import getopt
 import lxml.etree as ET
-import sys, getopt
+import sys
 
-def extractTextFromFile(inputXmlFilename, outputTextFilename):
+
+def extract_text_from_file(inputXmlFilename, outputTextFilename):
     tree = ET.parse(inputXmlFilename)
     root = tree.getroot()
-    file = open(outputTextFilename,'w')
+    file = open(outputTextFilename, 'w')
 
-    counter=0
+    counter = 0
 
     for i in range(len(root)):
-        isTranslatable = root[i].get('translatable')
-        if(root[i].tag=='string') & (isTranslatable!='false'):
-            counter=counter+1
-            file.write(str(counter)+':'+root[i].text+'\n')
-        if(root[i].tag=='string-array') & (isTranslatable!='false'):
+        is_translatable = root[i].get('translatable')
+        if (root[i].tag == 'string') & (is_translatable != 'false'):
+            counter = counter + 1
+            file.write(str(counter) + ':' + root[i].text + '\n')
+        if (root[i].tag == 'string-array') & (is_translatable != 'false'):
             for j in range(len(root[i])):
-                if(root[i][j].tag=='item'):
-                    counter=counter+1
-                    file.write(str(counter)+':'+root[i][j].text+'\n')
+                if root[i][j].tag == 'item':
+                    counter = counter + 1
+                    file.write(str(counter) + ':' + root[i][j].text + '\n')
     file.close()
     print('Text extracted to ', outputTextFilename)
 
 
+# ------------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
 
-def showUsage():
+def show_usage():
     print('dtranslate_xml_to_text.py -i <inputfile> -o <outputfile>')
 
+
 def main(argv):
-    inputfile = ''
-    outputfile = ''
     try:
-        opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
+        opts, args = getopt.getopt(argv, "hi:o:", ["ifile=", "ofile="])
     except getopt.GetoptError:
-        showUsage()
+        show_usage()
         sys.exit(2)
-    if(len(opts) != 2):
-        showUsage()
+    if (len(opts) < 1) | (len(opts) > 2):
+        show_usage()
         sys.exit(2)
+
+    input_file = ''
+    output_file = ''
+
     for opt, arg in opts:
         if opt == '-h':
-            showUsage()
+            show_usage()
             sys.exit()
         elif opt in ("-i", "--ifile"):
-            inputfile = arg
+            input_file = arg
         elif opt in ("-o", "--ofile"):
-            outputfile = arg
+            output_file = arg
 
-    print('Input file is        : ', inputfile)
-    print('Output file is       : ', outputfile)
-    extractTextFromFile(inputfile, outputfile)
+    print('Input file is        : ', input_file)
+    print('Output file is       : ', output_file)
+    extract_text_from_file(input_file, output_file)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])

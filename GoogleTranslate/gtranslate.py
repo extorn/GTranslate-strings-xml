@@ -160,119 +160,106 @@
 #   yo          Yoruba
 #   zu          Zulu
 
-import html
-import requests
-#import xml.etree.ElementTree as ET
-import lxml.etree as ET
-import sys, getopt
 import os.path
-from io import BytesIO
+
+import getopt
+import lxml.etree as ET
+import requests
+import sys
+
 
 class Translator():
 
-    def getOutputFilename(self, inFile, toLanguage):
-        filenameStem = os.path.splitext(inFile)[0]
-        fileExt = os.path.splitext(inFile)[1]
-        print(filenameStem)
-        print(fileExt)
-        outFile = "" + filenameStem + '-' + toLanguage + fileExt
-        return outFile
-
-
+    def get_output_filename(self, inFile, to_language):
+        filename_stem = os.path.splitext(inFile)[0]
+        file_ext = os.path.splitext(inFile)[1]
+        print(filename_stem)
+        print(file_ext)
+        out_file = "" + filename_stem + '-' + to_language + file_ext
+        return out_file
 
     def translate(self, to_translate, from_language="auto", to_language="auto"):
-#     print('translating to ', to_language, ' from ', from_language)
-     r = requests.get("http://translate.google.com/m?hl=%s&sl=%s&q=%s"% (to_language, from_language, to_translate.replace(" ", "+")))
-     if r.encoding is None or r.encoding == 'ISO-8859-1':
-         r.encoding = r.apparent_encoding
-#     print('Encoding :',r.encoding)
-#     print('processing text ',r.text)
-#     text=html.unescape(r.text)    
-     before_trans = 'class="t0"'
-     after_trans='</div>'
-#     print('found at pos ',r.text.find(before_trans))
-     parsed1=r.text[r.text.find(before_trans)+len(before_trans):]
-     parsed2=parsed1[:parsed1.find(after_trans)]
-     parsed3=parsed2[parsed2.find('>')+1:]
-     #print('translated text : ',parsed3)
-     
-     return parsed3
+        text = to_translate.replace(" ", "+")
+        r = requests.get(
+            "http://translate.google.com/m?hl=%s&sl=%s&q=%s" % (to_language, from_language, text))
+        if r.encoding is None or r.encoding == 'ISO-8859-1':
+            r.encoding = r.apparent_encoding
+        before_trans = 'class="t0"'
+        after_trans = '</div>'
+        parsed1 = r.text[r.text.find(before_trans) + len(before_trans):]
+        parsed2 = parsed1[:parsed1.find(after_trans)]
+        parsed3 = parsed2[parsed2.find('>') + 1:]
+        return parsed3
 
-    def translateXmlFile(self, inFile, outFile, fromLanguage, toLanguage):
+
+    def translate_xml_file(self, inFile, out_file, fromLanguage, toLanguage):
         tree = ET.parse(inFile)
         root = tree.getroot()
         for i in range(len(root)):
-            isTranslatable = root[i].get('translatable')
-            if(root[i].tag=='string'):
-#                if(isTranslatable=='false'):
-#                    print(root[i].text)
-#                else:
-                if(isTranslatable!='false'):
-                    totranslate=root[i].text
-                    print((str(i)+" ========================="))
+            is_translatable = root[i].get('translatable')
+            if root[i].tag == 'string':
+                if is_translatable != 'false':
+                    totranslate = root[i].text
+                    print((str(i) + " ========================="))
                     print(totranslate)
                     print("-->")
-                    if(totranslate!=None):
-                        root[i].text=self.translate(totranslate,fromLanguage,toLanguage)
+                    if (totranslate != None):
+                        root[i].text = self.translate(totranslate, fromLanguage, toLanguage)
                         print(root[i].text)
-            elif(root[i].tag=='string-array'):
-#                if(isTranslatable=='false'):
-#                    for j in range(len(root[i])):	
-#                        print((str(i)+" ========================="))
-#                        if(root[i][j].tag=='item'):
-#                            print(root[i][j].text)
-#                else:
-                if(isTranslatable!='false'):
-                    for j in range(len(root[i])):	
-                        if(root[i][j].tag=='item'):
-                            totranslate=root[i][j].text
-                            if(totranslate!=None):
-                                root[i][j].text=self.translate(totranslate,fromLanguage,toLanguage)
-                                print((str(i)+"["+str(j)+"] ========================="))
+            elif root[i].tag == 'string-array':
+                if is_translatable != 'false':
+                    for j in range(len(root[i])):
+                        if root[i][j].tag == 'item':
+                            totranslate = root[i][j].text
+                            if totranslate != None:
+                                root[i][j].text = self.translate(totranslate, fromLanguage, toLanguage)
+                                print((str(i) + "[" + str(j) + "] ========================="))
                                 print(totranslate)
                                 print(root[i][j].text)
-        print('writing to '+outFile)
-        tree.write(outFile, xml_declaration=True, encoding='utf-8')
+        print('writing to ' + out_file)
+        tree.write(out_file, xml_declaration=True, encoding='utf-8')
 
 
-def showUsage():
+def show_usage():
     print('gtranslate.py -i <inputfile> -o <outputfile> -l <languageCode e.g. "zh-CN>"')
 
+
 def main(argv):
-    inputfile = ''
-    translationsFile = ''
-    outputfile = ''
     try:
-        opts, args = getopt.getopt(argv,"hi:o:l:",["ifile=","ofile=","lfile="])
+        opts, args = getopt.getopt(argv, "hi:o:l:", ["ifile=", "ofile=", "lfile="])
     except getopt.GetoptError:
-        showUsage()
-        sys.exit(2)
-    if(len(opts) < 2 | len(opts) > 3):
-        showUsage()
+        show_usage()
         sys.exit(2)
 
-    outputFile = None
+    if (len(opts) < 1) | (len(opts) > 3):
+        show_usage()
+        sys.exit(2)
+
+    input_file = ''
+    output_language = ''
+    output_file = None
 
     for opt, arg in opts:
         if opt == '-h':
-            showUsage()
+            show_usage()
             sys.exit()
         elif opt in ("-i", "--ifile"):
-            inputFile = arg
+            input_file = arg
         elif opt in ("-o", "--ofile"):
-            outputFile = arg
+            output_file = arg
         elif opt in ("-l", "--lfile"):
-            outputLanguage = arg
+            output_language = arg
 
-    translator = Translator()
-    if(outputFile is None):
-        outputFile = translator.getOutputFilename(inputFile, outputLanguage)
+    if len(opts) == 3:
+        translator = Translator()
+        if (output_file is None):
+            output_file = translator.get_output_filename(input_file, output_language)
 
-    print('Input file is        : ', inputFile)
-    print('Output file is       : ', outputFile)
+        print('Input file is        : ', input_file)
+        print('Output file is       : ', output_file)
 
-    translator.translateXmlFile(inputFile, outputFile, "auto", outputLanguage)
+        translator.translate_xml_file(input_file, output_file, "auto", output_language)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-
