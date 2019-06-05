@@ -163,12 +163,26 @@
 import os.path
 
 import getopt
+
+
 import lxml.etree as ET
 import requests
 import sys
+import re
+import urllib
+
+try:
+    # Python 2.6-2.7
+    from HTMLParser import HTMLParser
+except ImportError:
+    # Python 3
+    from html.parser import HTMLParse
 
 
 class Translator():
+
+    numericPattern = re.compile('^[\\d.]*$')
+    h = HTMLParser()
 
     def get_output_filename(self, inFile, to_language):
         filename_stem = os.path.splitext(inFile)[0]
@@ -179,17 +193,32 @@ class Translator():
         return out_file
 
     def translate(self, to_translate, from_language="auto", to_language="auto"):
-        text = to_translate.replace(" ", "+")
-        r = requests.get(
-            "http://translate.google.com/m?hl=%s&sl=%s&q=%s" % (to_language, from_language, text))
-        if r.encoding is None or r.encoding == 'ISO-8859-1':
-            r.encoding = r.apparent_encoding
-        before_trans = 'class="t0"'
-        after_trans = '</div>'
-        parsed1 = r.text[r.text.find(before_trans) + len(before_trans):]
-        parsed2 = parsed1[:parsed1.find(after_trans)]
-        parsed3 = parsed2[parsed2.find('>') + 1:]
-        return parsed3
+        match = self.numericPattern.match(to_translate)
+        if match is not None:
+            return to_translate
+        else:
+            params = [('hl', to_language), ('sl', from_language), ('q', to_translate)]
+            r = None
+            try:
+                r = requests.get("http://translate.google.com/m", params = params)
+                # If the response was successful, no Exception will be raised
+                r.raise_for_status()
+            except urllib.error.HTTPError as http_err:
+                print('HTTP error occurred: {http_err}')  # Python 3.6
+            except Exception as err:
+                print('Other error occurred: {err}')  # Python 3.6
+            else:
+                print('Success!')
+
+            if r.encoding is None or r.encoding == 'ISO-8859-1':
+                r.encoding = r.apparent_encoding
+            before_trans = 'class="t0"'
+            after_trans = '</div>'
+            parsed1 = r.text[r.text.find(before_trans) + len(before_trans):]
+            parsed2 = parsed1[:parsed1.find(after_trans)]
+            parsed3 = parsed2[parsed2.find('>') + 1:]
+            parsed4 = self.h.unescape(parsed3)
+            return parsed4
 
 
     def translate_xml_file(self, inFile, out_file, from_language, to_language):
@@ -250,15 +279,15 @@ def main(argv):
         elif opt in ("-l", "--lfile"):
             output_language = arg
 
-    if len(opts) == 3:
-        translator = Translator()
-        if (output_file is None):
-            output_file = translator.get_output_filename(input_file, output_language)
 
-        print('Input file is        : ', input_file)
-        print('Output file is       : ', output_file)
+    translator = Translator()
+    if (output_file is None):
+        output_file = translator.get_output_filename(input_file, output_language)
 
-        translator.translate_xml_file(input_file, output_file, "auto", output_language)
+    print('Input file is        : ', input_file)
+    print('Output file is       : ', output_file)
+
+    translator.translate_xml_file(input_file, output_file, "auto", output_language)
 
 
 if __name__ == "__main__":
