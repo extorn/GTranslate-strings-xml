@@ -6,10 +6,10 @@ import lxml.etree as ET
 import sys
 
 
-def extract_text_from_file(inputXmlFilename, outputTextFilename):
-    tree = ET.parse(inputXmlFilename)
+def extract_text_from_file(input_xml_filename, output_text_filename):
+    tree = ET.parse(input_xml_filename)
     root = tree.getroot()
-    file = open(outputTextFilename, 'w')
+    file = open(output_text_filename, 'w')
 
     counter = 0
 
@@ -24,7 +24,7 @@ def extract_text_from_file(inputXmlFilename, outputTextFilename):
                     counter = counter + 1
                     file.write(str(counter) + ':' + root[i][j].text + '\n')
     file.close()
-    print('Text extracted to ', outputTextFilename)
+    print('Text extracted to ', output_text_filename)
 
 
 # ------------------------------------------------------------------------------

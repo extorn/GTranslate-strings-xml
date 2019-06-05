@@ -192,29 +192,29 @@ class Translator():
         return parsed3
 
 
-    def translate_xml_file(self, inFile, out_file, fromLanguage, toLanguage):
+    def translate_xml_file(self, inFile, out_file, from_language, to_language):
         tree = ET.parse(inFile)
         root = tree.getroot()
         for i in range(len(root)):
             is_translatable = root[i].get('translatable')
             if root[i].tag == 'string':
                 if is_translatable != 'false':
-                    totranslate = root[i].text
+                    to_translate = root[i].text
                     print((str(i) + " ========================="))
-                    print(totranslate)
+                    print(to_translate)
                     print("-->")
-                    if (totranslate != None):
-                        root[i].text = self.translate(totranslate, fromLanguage, toLanguage)
+                    if to_translate is not None:
+                        root[i].text = self.translate(to_translate, from_language, to_language)
                         print(root[i].text)
             elif root[i].tag == 'string-array':
                 if is_translatable != 'false':
                     for j in range(len(root[i])):
                         if root[i][j].tag == 'item':
-                            totranslate = root[i][j].text
-                            if totranslate != None:
-                                root[i][j].text = self.translate(totranslate, fromLanguage, toLanguage)
+                            to_translate = root[i][j].text
+                            if to_translate is not None:
+                                root[i][j].text = self.translate(to_translate, from_language, to_language)
                                 print((str(i) + "[" + str(j) + "] ========================="))
-                                print(totranslate)
+                                print(to_translate)
                                 print(root[i][j].text)
         print('writing to ' + out_file)
         tree.write(out_file, xml_declaration=True, encoding='utf-8')

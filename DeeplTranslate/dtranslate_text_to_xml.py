@@ -43,7 +43,7 @@ class RawTranslationsTextParser():
         file.close()
         return translations
 
-    def load_base_xml_file(self, xmlTemplateFilename):
+    def load_base_xml_file(self, xml_template_filename):
         # cparser = ET.XMLParser(target = CommentedTreeBuilder())
 
         # def read_xml_file(f):
@@ -51,12 +51,12 @@ class RawTranslationsTextParser():
 
         # prepare things
         # tree = ET.parse(XMLINFILE)
-        # xml_tree = read_xml_file(xmlTemplateFilename)
-        xml_tree = ET.parse(xmlTemplateFilename)
+        # xml_tree = read_xml_file(xml_template_filename)
+        xml_tree = ET.parse(xml_template_filename)
         return xml_tree
 
-    def merge_translations(self, xmlFileRoot, translations):
-        xml_root = xmlFileRoot.getroot()
+    def merge_translations(self, xml_file_root, translations):
+        xml_root = xml_file_root.getroot()
         # translation_lines=len(translations)-1
         for i in range(len(xml_root)):
             is_translatable = xml_root[i].get('translatable')
@@ -95,13 +95,13 @@ class RawTranslationsTextParser():
                 # Now loop until this translation is ended
                 current_line = translations[self.currentIdx]
                 match = self.newTranslationStartPattern.match(current_line)
-                while ((match is None) & (self.currentIdx < len(translations))):
+                while (match is None) & (self.currentIdx < len(translations)):
                     self.currentIdx += 1
-                    if (not multi_line):
+                    if not multi_line:
                         this_translation += '\n'
                     this_translation += current_line
                     multi_line = True
-                    if (self.currentIdx < len(translations)):
+                    if self.currentIdx < len(translations):
                         current_line = translations[self.currentIdx]
                         match = self.newTranslationStartPattern.match(current_line)
                         # print('translation continues: ')
