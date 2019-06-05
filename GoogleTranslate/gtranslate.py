@@ -161,10 +161,7 @@
 #   zu          Zulu
 
 import os.path
-
 import getopt
-
-
 import lxml.etree as ET
 import requests
 import sys
@@ -181,6 +178,8 @@ except ImportError:
 
 class Translator():
 
+    stringFormatterPattern = re.compile('%[0-9]+\$[-#+ 0,(]*[0-9]*[.]?[0-9]*[bBhHsScCdoxXeEfgGaAtTn]', re.MULTILINE)
+    strFormatSplitterPattern = re.compile('^%([0-9]+)\$([-#+ 0,(]*[0-9]*[.]?[0-9]*[bBhHsScCdoxXeEfgGaAtTn])$')
     numericPattern = re.compile('^[\\d.]*$')
     h = HTMLParser()
 
@@ -195,6 +194,7 @@ class Translator():
     def translate(self, to_translate, from_language="auto", to_language="auto"):
         match = self.numericPattern.match(to_translate)
         if match is not None:
+            # print('skipping translation of '+to_translate)
             return to_translate
         else:
             params = [('hl', to_language), ('sl', from_language), ('q', to_translate)]
@@ -207,8 +207,8 @@ class Translator():
                 print('HTTP error occurred: {http_err}')  # Python 3.6
             except Exception as err:
                 print('Other error occurred: {err}')  # Python 3.6
-            else:
-                print('Success!')
+            #else:
+            #    print('Success!')
 
             if r.encoding is None or r.encoding == 'ISO-8859-1':
                 r.encoding = r.apparent_encoding
@@ -218,10 +218,27 @@ class Translator():
             parsed2 = parsed1[:parsed1.find(after_trans)]
             parsed3 = parsed2[parsed2.find('>') + 1:]
             parsed4 = self.h.unescape(parsed3)
-            return parsed4
+            return self.fix_translation(to_translate, parsed4)
 
+    def fix_translation(self, text, translation):
+        patterns_found = self.stringFormatterPattern.findall(text)
+        fixed = translation
+        if patterns_found is None:
+            print('no pattern found in ' + text)
+            return translation
+        else:
+            for i in range(len(patterns_found)):
+                original_formatter_pattern = patterns_found[i]
+                # print('trying to fix pattern ' + original_formatter_pattern)
+                pattern_match = self.strFormatSplitterPattern.match(original_formatter_pattern)
+                if patterns_found is None:
+                    print('ERROR: Couldn\'t fix pattern '+original_formatter_pattern+' in original text ' + text)
+                else:
+                    broken_pattern = u'％' + pattern_match.group(1) + ' $ ' + pattern_match.group(2)
+                    fixed = fixed.replace(broken_pattern, original_formatter_pattern)
+        return fixed
 
-    def translate_xml_file(self, inFile, out_file, from_language, to_language):
+    def translate_xml_file(self, inFile, out_file, from_language, to_language, verbose):
         tree = ET.parse(inFile)
         root = tree.getroot()
         for i in range(len(root)):
@@ -230,21 +247,24 @@ class Translator():
                 if is_translatable != 'false':
                     to_translate = root[i].text
                     print((str(i) + " ========================="))
-                    print(to_translate)
-                    print("-->")
+                    if verbose:
+                        print(to_translate)
+                        print("-->")
                     if to_translate is not None:
                         root[i].text = self.translate(to_translate, from_language, to_language)
-                        print(root[i].text)
+                        if verbose:
+                            print(root[i].text)
             elif root[i].tag == 'string-array':
                 if is_translatable != 'false':
                     for j in range(len(root[i])):
                         if root[i][j].tag == 'item':
                             to_translate = root[i][j].text
                             if to_translate is not None:
-                                root[i][j].text = self.translate(to_translate, from_language, to_language)
                                 print((str(i) + "[" + str(j) + "] ========================="))
-                                print(to_translate)
-                                print(root[i][j].text)
+                                root[i][j].text = self.translate(to_translate, from_language, to_language)
+                                if verbose:
+                                    print(to_translate)
+                                    print(root[i][j].text)
         print('writing to ' + out_file)
         tree.write(out_file, xml_declaration=True, encoding='utf-8')
 
@@ -267,6 +287,7 @@ def main(argv):
     input_file = ''
     output_language = ''
     output_file = None
+    verbose = False
 
     for opt, arg in opts:
         if opt == '-h':
@@ -287,7 +308,7 @@ def main(argv):
     print('Input file is        : ', input_file)
     print('Output file is       : ', output_file)
 
-    translator.translate_xml_file(input_file, output_file, "auto", output_language)
+    translator.translate_xml_file(input_file, output_file, "auto", output_language, verbose)
 
 
 if __name__ == "__main__":
